@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.1.6",
+    "isomorphic-fetch": "^3.0.0"
+  }
+}
