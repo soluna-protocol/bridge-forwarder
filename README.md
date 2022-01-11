@@ -22,3 +22,5 @@ contract address: terra1hf37ztxxne8tlv6dmzl6370ndyjg8f7sxm6mkr
 
 ## TODO
 - [ ] combine this repo with pylon interest redirection because they directly interact
+- [ ] Update tests
+- [ ] Find out transaction that needs to be passed into wormhole redeem interface
