@@ -12,8 +12,8 @@ use terraswap::asset::{
 };
 
 use crate::error::ContractError;
-use crate::msg::{BalanceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{Config, CONFIG};
+use crate::msg::{BalanceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TimeResponse};
+use crate::state::{Config, CONFIG, TimeInfo, TIME};
 use crate::tax_utils::deduct_tax;
 use crate::token_utils::balance_of;
 use crate::pool_msg;
@@ -24,7 +24,7 @@ use crate::bridge_msg;
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
@@ -34,9 +34,16 @@ pub fn instantiate(
       receiver: deps.api.addr_canonicalize(msg.receiver.as_str())?,
       bank: deps.api.addr_canonicalize(msg.bank.as_str())?,
       bridge:  deps.api.addr_canonicalize(msg.bridge.as_str())?,
+      target: msg.target
     };
 
     CONFIG.save(deps.storage, &config)?;
+
+    let time = TimeInfo {
+      last_updated_time: env.block.time.seconds()
+    };
+
+    TIME.save(deps.storage, &time)?;
 
     Ok(Response::new())
 }
@@ -44,16 +51,17 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Earn {} => try_earn(deps),
-        ExecuteMsg::UpdateConfig { pause, owner, receiver, bank, bridge }
-          => try_update_config(deps, info, pause, owner, receiver, bank, bridge),
-        ExecuteMsg::Bridge { amount, recipient_chain, recipient, nonce }
-          => try_bridge(deps, info, amount, recipient_chain, recipient, nonce),
+        ExecuteMsg::Time {} => try_time(deps, env),
+        ExecuteMsg::UpdateConfig { pause, owner, receiver, bank, bridge, target }
+          => try_update_config(deps, info, pause, owner, receiver, bank, bridge, target),
+        ExecuteMsg::Bridge { amount }
+          => try_bridge(deps, info, amount),
         // ExecuteMsg::ApproveBridge { amount } => try_approve( deps, info, amount),
     }
 }
@@ -87,13 +95,20 @@ pub fn try_earn(deps: DepsMut) -> Result<Response, ContractError> {
       })))
 }
 
+pub fn try_time(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+  let mut time: TimeInfo = TIME.load(deps.storage)?;
+
+  time.last_updated_time = env.block.time.seconds();
+
+  TIME.save(deps.storage, &time)?;
+
+  Ok(Response::new().add_attribute("action", "update_time"))
+}
+
 pub fn try_bridge(
   deps: DepsMut,
   _info: MessageInfo,
   amount: Uint128,
-  recipient_chain: u16,
-  recipient: String,
-  nonce: u32,
 ) -> Result<Response, ContractError> {
   let state : Config = CONFIG.load(deps.storage)?;
 
@@ -117,7 +132,7 @@ pub fn try_bridge(
       contract_addr: token,
       msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
         spender: deps.api.addr_humanize(&state.bridge).unwrap().to_string(),
-        amount: amount,
+        amount,
         expires: None,
       })?,
       funds: vec![],
@@ -126,10 +141,10 @@ pub fn try_bridge(
       contract_addr: deps.api.addr_humanize(&state.bridge).unwrap().to_string(),
       msg: to_binary(&bridge_msg::ExecuteMsg::InitiateTransfer {
         asset,
-        recipient_chain,
-        recipient: to_binary(&recipient)?,
-        fee: Uint128::from(10u64),
-        nonce,
+        recipient_chain: 1,
+        recipient: state.target,
+        fee: Uint128::from(0u32),
+        nonce: 3,
       })?,
       funds: vec![],
     }))
@@ -172,6 +187,7 @@ pub fn try_update_config(
   receiver: Option<String>,
   bank: Option<String>,
   bridge: Option<String>,
+  target: Option<Binary>,
 ) -> Result<Response, ContractError> {
     let mut config: Config = CONFIG.load(deps.storage)?;
 
@@ -207,6 +223,12 @@ pub fn try_update_config(
       config.bridge = deps.api.addr_canonicalize(&bridge)?;
     }
 
+
+    if let Some(target) = target {
+
+      config.target = target;
+    }
+
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("action", "update_config"))
@@ -217,17 +239,28 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => to_binary(&query_config(deps)?),
         QueryMsg::GetBalance {} => to_binary(&query_balance(deps, env)?),
+        QueryMsg::GetTime {} => to_binary(&query_time(deps, env)?)
     }
 }
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state : Config = CONFIG.load(deps.storage)?;
+
+    let res : pool_resp::ConfigResponse = deps.querier.query(
+      &QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: deps.api.addr_humanize(&state.bank).unwrap().to_string(),
+        msg: to_binary(&pool_msg::QueryMsg::Config {})?,
+      }))?;
+  
+    let token = res.dp_token;
     Ok(ConfigResponse { 
       pause: state.pause,
       owner: deps.api.addr_humanize(&state.owner)?.to_string(),
       receiver: deps.api.addr_humanize(&state.receiver)?.to_string(),
       bank: deps.api.addr_humanize(&state.bank)?.to_string(),
       bridge: deps.api.addr_humanize(&state.bridge)?.to_string(),
+      token: token,
+      target: state.target,
     })
 }
 
@@ -264,61 +297,70 @@ fn query_balance(deps: Deps, env: Env) -> StdResult<BalanceResponse> {
   })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
+fn query_time(deps: Deps, env: Env) -> StdResult<TimeResponse> {
+  let time: TimeInfo = TIME.load(deps.storage)?;
 
-    #[test]
-    fn proper_initialization() {
-        let mut deps = mock_dependencies(&[]);
-
-        let msg = InstantiateMsg {
-          receiver: "terra1sh36qn08g4cqg685cfzmyxqv2952q6r8gpczrt".to_string()
-
-         };
-        let info = mock_info("creator", &coins(1000, "earth"));
-
-        // we can just call .unwrap() to assert this was a success
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // it worked, let's query the state
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetConfig {}).unwrap();
-        let value: ConfigResponse = from_binary(&res).unwrap();
-        assert_eq!(false, value.pause);
-        assert_eq!("terra1sh36qn08g4cqg685cfzmyxqv2952q6r8gpczrt".to_string(), value.receiver)
-
-    }
-
-    // }
-
-    #[test]
-    fn pause() {
-        let mut deps = mock_dependencies(&coins(2, "token"));
-
-        let msg = InstantiateMsg { receiver: "terra1sh36qn08g4cqg685cfzmyxqv2952q6r8gpczrt".to_string() };
-        let info = mock_info("creator", &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // beneficiary can release it
-        let unauth_info = mock_info("anyone", &coins(2, "token"));
-        let msg = ExecuteMsg::UpdateConfig { pause: Some(true), owner: None, receiver: None };
-        let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-        match res {
-            Err(ContractError::Unauthorized {}) => {}
-            _ => panic!("Must return unauthorized error"),
-        }
-
-        // only the original creator can reset the counter
-        let auth_info = mock_info("creator", &coins(2, "token"));
-        let msg = ExecuteMsg::UpdateConfig { pause: Some(true), owner: None, receiver: None };
-        let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
-
-        // should now be 5
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetConfig {}).unwrap();
-        let value: ConfigResponse = from_binary(&res).unwrap();
-        assert_eq!(true, value.pause);
-    }
+  Ok(TimeResponse {
+    time: env.block.time.seconds(),
+    last_updated_time: time.last_updated_time,
+  })
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+//     use cosmwasm_std::{coins, from_binary};
+
+//     #[test]
+//     fn proper_initialization() {
+//         let mut deps = mock_dependencies(&[]);
+
+//         let msg = InstantiateMsg {
+//           receiver: "terra1sh36qn08g4cqg685cfzmyxqv2952q6r8gpczrt".to_string()
+
+//          };
+//         let info = mock_info("creator", &coins(1000, "earth"));
+
+//         // we can just call .unwrap() to assert this was a success
+//         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+//         assert_eq!(0, res.messages.len());
+
+//         // it worked, let's query the state
+//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetConfig {}).unwrap();
+//         let value: ConfigResponse = from_binary(&res).unwrap();
+//         assert_eq!(false, value.pause);
+//         assert_eq!("terra1sh36qn08g4cqg685cfzmyxqv2952q6r8gpczrt".to_string(), value.receiver)
+
+//     }
+
+//     // }
+
+//     #[test]
+//     fn pause() {
+//         let mut deps = mock_dependencies(&coins(2, "token"));
+
+//         let msg = InstantiateMsg { receiver: "terra1sh36qn08g4cqg685cfzmyxqv2952q6r8gpczrt".to_string() };
+//         let info = mock_info("creator", &coins(2, "token"));
+//         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+//         // beneficiary can release it
+//         let unauth_info = mock_info("anyone", &coins(2, "token"));
+//         let msg = ExecuteMsg::UpdateConfig { pause: Some(true), owner: None, receiver: None };
+//         let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+//         match res {
+//             Err(ContractError::Unauthorized {}) => {}
+//             _ => panic!("Must return unauthorized error"),
+//         }
+
+//         // only the original creator can reset the counter
+//         let auth_info = mock_info("creator", &coins(2, "token"));
+//         let msg = ExecuteMsg::UpdateConfig { pause: Some(true), owner: None, receiver: None };
+//         let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
+
+//         // should now be 5
+//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetConfig {}).unwrap();
+//         let value: ConfigResponse = from_binary(&res).unwrap();
+//         assert_eq!(true, value.pause);
+//     }
+// }

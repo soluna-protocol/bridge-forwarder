@@ -25,6 +25,18 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_time"
+      ],
+      "properties": {
+        "get_time": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }

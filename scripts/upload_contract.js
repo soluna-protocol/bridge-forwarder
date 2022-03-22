@@ -32,7 +32,7 @@ const wallet = terra.wallet(mk);
 
 const storeCode = new MsgStoreCode(
   wallet.key.accAddress,
-  fs.readFileSync('./artifacts/my_first_contract-aarch64.wasm').toString('base64')
+  fs.readFileSync('./artifacts/bridge_fowarder-aarch64.wasm').toString('base64')
 );
 const storeCodeTx = await wallet.createAndSignTx({
   msgs: [storeCode],

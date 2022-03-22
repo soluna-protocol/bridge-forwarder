@@ -30,9 +30,31 @@ const mk = new MnemonicKey({
 
 const wallet = terra.wallet(mk);
 
+// const result = await terra.wasm.contractQuery(
+//   "terra1spgmfack053u53e6mj47xq3rxfe4cx8cgtlgpq",
+//   { 
+//     allowance: { 
+//       owner: "terra1cw4swygjqhg05u07n7trv6hra76nzd47gweav4",
+//       spender: "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a"
+//     }
+//   } // query msg
+// );
+
+// const result = await terra.wasm.contractQuery(
+//   "terra1spgmfack053u53e6mj47xq3rxfe4cx8cgtlgpq",
+//   { 
+//     balance: { 
+//       address: "terra18rzlpedq4aamu52u2lpcne6hwcld9cra5vsydl",
+//     }
+//   } // query msg
+// );
+
 const result = await terra.wasm.contractQuery(
-  "terra1hf37ztxxne8tlv6dmzl6370ndyjg8f7sxm6mkr",
-  { get_config: { } } // query msg
+  "terra1ml6u0dsc3vn23stm2g4sw3gslek5mqs3zkt4z6",
+  { 
+    get_time: {
+    }
+  } // query msg
 );
 
 console.log(result)

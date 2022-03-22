@@ -1,6 +1,8 @@
 import { LCDClient, MsgExecuteContract, MnemonicKey, isTxError, Coins} from '@terra-money/terra.js';
 import * as fs from 'fs';
 import fetch from 'isomorphic-fetch';
+import { CHAIN_ID_SOLANA, hexToUint8Array, nativeToHexString } from "@certusone/wormhole-sdk";
+
 
 
 // Fetch gas prices and convert to `Coin` format.
@@ -31,55 +33,55 @@ const mk = new MnemonicKey({
 
 const wallet = terra.wallet(mk);
 
-const token = "terra1emqzm6me89rcd4pl93kvts3rpaeczj62nhwnzg"
+const token = "terra1spgmfack053u53e6mj47xq3rxfe4cx8cgtlgpq"
 
 const bridge = "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a"
 
-const h = "6e653901c71453b1b317b7d7cface7ede623fd4a193f5fd516a86e409fafe8ab"
-
-const recipeintAddress = new Uint8Array(Buffer.from(h, "hex"))
-
-console.log(recipeintAddress)
-
-// let execute = new MsgExecuteContract(
-//   wallet.key.accAddress, // sender
-//   token, // contract account address
-//   { 
-//     increase_allowance: {
-//       spender: bridge,
-//       amount: "53",
-//     } 
-//   }, // handle msg
-// );
-// let executeTx = await wallet.createAndSignTx({
-//   msgs: [execute]
-// });
-
-// let _ = await terra.tx.broadcast(executeTx);
-
-let execute = new MsgExecuteContract(
-  wallet.key.accAddress, // sender
-  bridge, // contract account address
-  { 
-    initiate_transfer: {
-      asset: {
-        amount: "49",
-        info: {
-          token: {
-            contract_addr: token,
-          },
-        },
-      },
-      recipient_chain: 1,
-      recipient: Buffer.from(recipeintAddress).toString("base64"),
-      fee: "0",
-      nonce: 70,
-    } 
-  }, // handle msg
+const target = hexToUint8Array(
+  nativeToHexString("B3Qnkdcv1aRkHFqp6UBRpdz2Addu27pN23xhUmRWwNPM", CHAIN_ID_SOLANA) ?? ""
 );
 
+console.log(Buffer.from(target).toString("base64"))
+
+let execute1 = new MsgExecuteContract(
+  wallet.key.accAddress,
+  token,
+  {
+    increase_allowance: {
+      spender: bridge,
+      amount: "1000000",
+      expires: {
+        never: {},
+      },
+    },
+  },
+  {}
+)
+
+// let execute2 = new MsgExecuteContract(
+//   wallet.key.accAddress,
+//   bridge,
+//   {
+//     initiate_transfer: {
+//       asset: {
+//         amount: "1000000",
+//         info: {
+//           token: {
+//             contract_addr: token,
+//           },
+//         },
+//       },
+//       recipient_chain: CHAIN_ID_SOLANA,
+//       recipient: Buffer.from(target).toString("base64"),
+//       fee: "0",
+//       nonce: 69,
+//     },
+//   },
+//   {}
+// )
+
 let executeTx = await wallet.createAndSignTx({
-  msgs: [execute]
+  msgs: [execute1]
 });
 
 let executeTxResult = await terra.tx.broadcast(executeTx);

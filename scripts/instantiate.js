@@ -1,6 +1,8 @@
 import { LCDClient, MsgInstantiateContract, MsgStoreCode, MnemonicKey, isTxError, Coins} from '@terra-money/terra.js';
 import * as fs from 'fs';
 import fetch from 'isomorphic-fetch';
+import { CHAIN_ID_SOLANA, hexToUint8Array, nativeToHexString } from "@certusone/wormhole-sdk";
+
 
 // Fetch gas prices and convert to `Coin` format.
 const gasPrices = await (await fetch('https://bombay-fcd.terra.dev/v1/txs/gas_prices')).json();
@@ -30,7 +32,13 @@ const mk = new MnemonicKey({
 
 const wallet = terra.wallet(mk);
 
-const code_id = 32473; 
+const code_id = 55346; 
+
+const target = hexToUint8Array(
+  nativeToHexString("B3Qnkdcv1aRkHFqp6UBRpdz2Addu27pN23xhUmRWwNPM", CHAIN_ID_SOLANA) ?? ""
+);
+
+console.log(Buffer.from(target).toString("base64"))
 
 const instantiate = new MsgInstantiateContract(
   wallet.key.accAddress,
@@ -38,8 +46,9 @@ const instantiate = new MsgInstantiateContract(
   code_id, // code ID
   {
     receiver: wallet.key.accAddress,
-    bank: "terra1vt8ln3dn3fu7uceyde6q67annt46cy8jvxwjlq",
-    bridge: "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a"
+    bank: "terra1t2eehshcueggptcge5prr4vx8wrztx3v8vwku7",
+    bridge: "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a",
+    target: Buffer.from(target).toString("base64"),
   }, // InitMsg
 );
 

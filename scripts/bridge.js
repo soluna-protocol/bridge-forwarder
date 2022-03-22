@@ -1,6 +1,8 @@
 import { LCDClient, MsgExecuteContract, MnemonicKey, isTxError, Coins} from '@terra-money/terra.js';
 import * as fs from 'fs';
 import fetch from 'isomorphic-fetch';
+import { CHAIN_ID_SOLANA, hexToUint8Array, nativeToHexString } from "@certusone/wormhole-sdk";
+
 
 // Fetch gas prices and convert to `Coin` format.
 const gasPrices = await (await fetch('https://bombay-fcd.terra.dev/v1/txs/gas_prices')).json();
@@ -30,7 +32,10 @@ const mk = new MnemonicKey({
 
 const wallet = terra.wallet(mk);
 
-const contract = "terra1hf37ztxxne8tlv6dmzl6370ndyjg8f7sxm6mkr"
+// const contract = "terra1zpzp3ag2hlque7r72pxp0a3x0qyfam7lfzpqc2" // to_bytes code
+
+const contract = 'terra17y9tw9mtepnpekpsqq3sjyuezq2cpjev6aackq'
+
 
 // let execute = new MsgExecuteContract(
 //   wallet.key.accAddress, // sender
@@ -47,21 +52,12 @@ const contract = "terra1hf37ztxxne8tlv6dmzl6370ndyjg8f7sxm6mkr"
 
 // let executeTxResult = await terra.tx.broadcast(executeTx);
 
-const h = "6e653901c71453b1b317b7d7cface7ede623fd4a193f5fd516a86e409fafe8ab"
-
-const recipeintAddress = new Uint8Array(Buffer.from(h, "hex"))
-
-console.log(recipeintAddress)
-
 let execute = new MsgExecuteContract(
   wallet.key.accAddress, // sender
   contract, // contract account address
   { 
     bridge: {
-      amount: "100",
-      recipient_chain: 1,
-      recipient: Buffer.from(recipeintAddress).toString("base64"),
-      nonce: 69,
+      amount: "1000000",
     } 
   }, // handle msg
 );

@@ -18,7 +18,8 @@ docker run --rm -v "$(pwd)":/code \
 
 ## Deployed
 ***Bombay***
-contract address: terra1hf37ztxxne8tlv6dmzl6370ndyjg8f7sxm6mkr
+contract address:'terra17y9tw9mtepnpekpsqq3sjyuezq2cpjev6aackq'
+
 
 ## TODO
 - [ ] combine this repo with pylon interest redirection because they directly interact

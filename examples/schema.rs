@@ -3,8 +3,8 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use my_first_contract::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use my_first_contract::state::Config;
+use bridge_fowarder::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use bridge_fowarder::state::Config;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
