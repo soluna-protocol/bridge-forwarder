@@ -71,7 +71,7 @@ pub fn try_rebase(
     return Err(ContractError::Paused {});
   }
 
-  if env.block.time.seconds() < time.last_updated_time + state.period {
+  if env.block.time.seconds() <= time.last_updated_time + state.period {
     return Err(ContractError::Time {});
   }
 
