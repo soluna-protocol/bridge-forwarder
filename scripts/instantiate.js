@@ -32,7 +32,7 @@ const mk = new MnemonicKey({
 
 const wallet = terra.wallet(mk);
 
-const code_id = 55346; 
+const code_id = 56370; 
 
 const target = hexToUint8Array(
   nativeToHexString("B3Qnkdcv1aRkHFqp6UBRpdz2Addu27pN23xhUmRWwNPM", CHAIN_ID_SOLANA) ?? ""

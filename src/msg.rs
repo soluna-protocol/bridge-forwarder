@@ -27,9 +27,7 @@ pub enum ExecuteMsg {
     // ApproveBridge {
     //   amount: Uint128,
     // },
-    Bridge {
-      amount: Uint128,
-    },
+    Bridge {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

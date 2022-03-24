@@ -50,9 +50,9 @@ const wallet = terra.wallet(mk);
 // );
 
 const result = await terra.wasm.contractQuery(
-  "terra1ml6u0dsc3vn23stm2g4sw3gslek5mqs3zkt4z6",
+  "terra1lsmpgcjad8ahsylzmltxsyux8kvaquhj0r9dl6",
   { 
-    get_time: {
+    get_balance: {
     }
   } // query msg
 );

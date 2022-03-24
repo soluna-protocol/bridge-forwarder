@@ -39,6 +39,15 @@ const execute = new MsgExecuteContract(
    } }, // handle msg
 );
 
+const execute = new MsgExecuteContract(
+  wallet.key.accAddress, // sender
+  "terra1emqzm6me89rcd4pl93kvts3rpaeczj62nhwnzg", // contract account address
+  { transfer: {
+    recipient: "terra1h43nmamy86jjtamguma52msuhp9pgmpfanvwth",
+    amount: "3000000"
+   } }, // handle msg
+);
+
 const executeTx = await wallet.createAndSignTx({
   msgs: [execute]
 });

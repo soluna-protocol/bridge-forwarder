@@ -1,10 +1,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-  to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Coin, CosmosMsg, 
+  to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, CosmosMsg, 
   WasmMsg, WasmQuery, QueryRequest, Uint128,
 };
-use cosmwasm_bignumber::Uint256;
 use cw20::Cw20ExecuteMsg;
 use terraswap::asset::{
   Asset,
@@ -14,8 +13,6 @@ use terraswap::asset::{
 use crate::error::ContractError;
 use crate::msg::{BalanceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TimeResponse};
 use crate::state::{Config, CONFIG, TimeInfo, TIME};
-use crate::tax_utils::deduct_tax;
-use crate::token_utils::balance_of;
 use crate::pool_msg;
 use crate::pool_resp;
 use crate::bridge_msg;
@@ -60,8 +57,8 @@ pub fn execute(
         ExecuteMsg::Time {} => try_time(deps, env),
         ExecuteMsg::UpdateConfig { pause, owner, receiver, bank, bridge, target }
           => try_update_config(deps, info, pause, owner, receiver, bank, bridge, target),
-        ExecuteMsg::Bridge { amount }
-          => try_bridge(deps, info, amount),
+        ExecuteMsg::Bridge { }
+          => try_bridge(deps, info),
         // ExecuteMsg::ApproveBridge { amount } => try_approve( deps, info, amount),
     }
 }
@@ -108,13 +105,20 @@ pub fn try_time(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 pub fn try_bridge(
   deps: DepsMut,
   _info: MessageInfo,
-  amount: Uint128,
 ) -> Result<Response, ContractError> {
   let state : Config = CONFIG.load(deps.storage)?;
 
   if state.pause {
     return Err(ContractError::Paused {});
   }
+
+  let reward : pool_resp::ClaimableRewardResponse = deps.querier.query(
+    &QueryRequest::Wasm(WasmQuery::Smart {
+      contract_addr: deps.api.addr_humanize(&state.bank).unwrap().to_string(),
+      msg: to_binary(&pool_msg::QueryMsg::ClaimableReward {})?,
+    }))?;
+
+  let amount = Uint128::from(reward.amount);
 
   let res : pool_resp::ConfigResponse = deps.querier.query(
     &QueryRequest::Wasm(WasmQuery::Smart {
@@ -128,6 +132,15 @@ pub fn try_bridge(
   let asset: Asset = Asset { info, amount };
 
   Ok(Response::new()
+    .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+      contract_addr: deps
+        .api
+        .addr_humanize(&state.bank)
+        .unwrap()
+        .to_string(),
+      msg: to_binary(&pool_msg::ExecuteMsg::Earn {})?,
+      funds: vec![],
+    }))
     .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
       contract_addr: token,
       msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
@@ -238,7 +251,7 @@ pub fn try_update_config(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => to_binary(&query_config(deps)?),
-        QueryMsg::GetBalance {} => to_binary(&query_balance(deps, env)?),
+        QueryMsg::GetBalance {} => to_binary(&query_balance(deps)?),
         QueryMsg::GetTime {} => to_binary(&query_time(deps, env)?)
     }
 }
@@ -264,36 +277,20 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
-fn query_balance(deps: Deps, env: Env) -> StdResult<BalanceResponse> {
+fn query_balance(deps: Deps) -> StdResult<BalanceResponse> {
   let state : Config = CONFIG.load(deps.storage)?;
 
-  let res : pool_resp::ConfigResponse = deps.querier.query(
+  let res : pool_resp::ClaimableRewardResponse = deps.querier.query(
     &QueryRequest::Wasm(WasmQuery::Smart {
       contract_addr: deps.api.addr_humanize(&state.bank).unwrap().to_string(),
-      msg: to_binary(&pool_msg::QueryMsg::Config {})?,
+      msg: to_binary(&pool_msg::QueryMsg::ClaimableReward {})?,
     }))?;
 
-  let token = res.dp_token;
+  let token = res.amount;
 
-  let token_balance = balance_of(
-    deps,
-    token.clone(),
-    env.contract.address.to_string(),
-  ).unwrap();
-
-  let real_value = Uint256::from(
-    deduct_tax(
-      deps,
-      Coin {
-        denom: token,
-        amount: token_balance.into(),
-      }
-    )?
-    .amount,
-  );
 
   Ok(BalanceResponse {
-    balance: real_value,
+    balance: token,
   })
 }
 

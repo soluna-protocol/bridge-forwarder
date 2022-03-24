@@ -34,7 +34,7 @@ const wallet = terra.wallet(mk);
 
 // const contract = "terra1zpzp3ag2hlque7r72pxp0a3x0qyfam7lfzpqc2" // to_bytes code
 
-const contract = 'terra17y9tw9mtepnpekpsqq3sjyuezq2cpjev6aackq'
+const contract = 'terra1zam63ltnt76qjzsafchs6rw4kzasd0ap5fhtws'
 
 
 // let execute = new MsgExecuteContract(
@@ -56,9 +56,7 @@ let execute = new MsgExecuteContract(
   wallet.key.accAddress, // sender
   contract, // contract account address
   { 
-    bridge: {
-      amount: "1000000",
-    } 
+    bridge: {} 
   }, // handle msg
 );
 
