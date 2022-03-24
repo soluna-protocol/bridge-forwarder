@@ -17,18 +17,6 @@
     {
       "type": "object",
       "required": [
-        "get_balance"
-      ],
-      "properties": {
-        "get_balance": {
-          "type": "object"
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "get_time"
       ],
       "properties": {

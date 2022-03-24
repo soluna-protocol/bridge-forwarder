@@ -1,6 +1,7 @@
 import { LCDClient, MsgInstantiateContract, MsgStoreCode, MnemonicKey, isTxError, Coins} from '@terra-money/terra.js';
-import * as fs from 'fs';
 import fetch from 'isomorphic-fetch';
+import "dotenv/config";
+
 
 // Fetch gas prices and convert to `Coin` format.
 const gasPrices = await (await fetch('https://bombay-fcd.terra.dev/v1/txs/gas_prices')).json();
@@ -15,12 +16,8 @@ const terra = new LCDClient({
 });
 
 const mk = new MnemonicKey({
-  mnemonic: 'popular raven ginger mechanic blind celery uncle will upon tilt midnight cannon wheat issue picture grass either family scheme world salad rice obtain auction'
+  mnemonic: process.env.MNEMONIC
 })
-
-// const mk = new MnemonicKey({
-//   mnemonic: 'satisfy adjust timber high purchase tuition stool faith fine install that you unaware feed domain license impose boss human eager hat rent enjoy dawn'
-// })
 
 // // connect to localterra
 // const terra = new LCDClient({
@@ -50,10 +47,9 @@ const wallet = terra.wallet(mk);
 // );
 
 const result = await terra.wasm.contractQuery(
-  "terra1lsmpgcjad8ahsylzmltxsyux8kvaquhj0r9dl6",
+  "terra1y23p9f3tjrsssmev5j0m2j5rn3re32zlxggfn6",
   { 
-    get_balance: {
-    }
+    get_time: {}
   } // query msg
 );
 

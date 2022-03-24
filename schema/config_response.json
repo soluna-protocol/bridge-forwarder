@@ -7,7 +7,7 @@
     "bridge",
     "owner",
     "pause",
-    "receiver",
+    "period",
     "target",
     "token"
   ],
@@ -24,8 +24,10 @@
     "pause": {
       "type": "boolean"
     },
-    "receiver": {
-      "type": "string"
+    "period": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
     },
     "target": {
       "$ref": "#/definitions/Binary"

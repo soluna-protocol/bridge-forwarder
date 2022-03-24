@@ -5,7 +5,7 @@
   "required": [
     "bank",
     "bridge",
-    "receiver",
+    "period",
     "target"
   ],
   "properties": {
@@ -15,8 +15,10 @@
     "bridge": {
       "type": "string"
     },
-    "receiver": {
-      "type": "string"
+    "period": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
     },
     "target": {
       "$ref": "#/definitions/Binary"

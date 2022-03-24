@@ -8,10 +8,10 @@ use cw_storage_plus::Item;
 pub struct Config {
     pub pause: bool,
     pub owner: CanonicalAddr,
-    pub receiver: CanonicalAddr,
     pub bank: CanonicalAddr,
     pub bridge: CanonicalAddr,
     pub target: Binary,
+    pub period: u64,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
